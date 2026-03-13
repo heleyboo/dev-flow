@@ -8,3 +8,8 @@ coverage/
 playwright-report/
 test-results/
 .DS_Store
+.claude/
+.devflow/
+.opencode/
+AGENTS.md
+CLAUDE.md
