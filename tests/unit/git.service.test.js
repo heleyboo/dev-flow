@@ -4,6 +4,8 @@ import {
   detectCommitType,
   generateCommitMessage,
   extractJiraIdFromBranch,
+  detectPlatform,
+  generatePRDescription,
   GitService,
 } from '../../src/services/git.service.js';
 
@@ -33,6 +35,7 @@ vi.mock('simple-git', () => ({
     log: vi.fn().mockResolvedValue({
       all: [{ hash: 'abc123', message: 'feat: something', date: '2024-01-01' }],
     }),
+    remote: vi.fn().mockResolvedValue('git@github.com:owner/repo.git\n'),
   }),
 }));
 
@@ -290,5 +293,84 @@ describe('GitService', () => {
         { hash: 'abc123', message: 'feat: something', date: '2024-01-01' },
       ]);
     });
+  });
+
+  describe('getRemoteUrl', () => {
+    it('returns trimmed remote URL', async () => {
+      const url = await service.getRemoteUrl();
+      expect(url).toBe('git@github.com:owner/repo.git');
+    });
+  });
+
+  describe('createPR', () => {
+    it('throws for non-GitHub platforms', async () => {
+      gitMock.remote.mockResolvedValueOnce('git@gitlab.com:owner/repo.git\n');
+      await expect(
+        service.createPR({ title: 'Test', body: 'body', baseBranch: 'main' })
+      ).rejects.toThrow('PR creation for gitlab not yet supported');
+    });
+
+    it('throws for unknown platforms', async () => {
+      gitMock.remote.mockResolvedValueOnce('https://custom.git.server/repo\n');
+      await expect(
+        service.createPR({ title: 'Test', body: 'body', baseBranch: 'main' })
+      ).rejects.toThrow('PR creation for unknown not yet supported');
+    });
+  });
+});
+
+// ── detectPlatform ────────────────────────────────────────────────────────────
+
+describe('detectPlatform', () => {
+  it('detects GitHub from SSH URL', () => {
+    const result = detectPlatform('git@github.com:owner/repo.git');
+    expect(result).toEqual({ platform: 'github', owner: 'owner', repo: 'repo' });
+  });
+
+  it('detects GitHub from HTTPS URL', () => {
+    const result = detectPlatform('https://github.com/owner/repo.git');
+    expect(result).toEqual({ platform: 'github', owner: 'owner', repo: 'repo' });
+  });
+
+  it('detects GitLab', () => {
+    const result = detectPlatform('git@gitlab.com:owner/repo.git');
+    expect(result.platform).toBe('gitlab');
+  });
+
+  it('detects Bitbucket', () => {
+    const result = detectPlatform('git@bitbucket.org:owner/repo.git');
+    expect(result.platform).toBe('bitbucket');
+  });
+
+  it('returns unknown for unrecognized URL', () => {
+    const result = detectPlatform('https://custom.git.server/repo');
+    expect(result.platform).toBe('unknown');
+  });
+});
+
+// ── generatePRDescription ─────────────────────────────────────────────────────
+
+describe('generatePRDescription', () => {
+  it('generates PR body with task info and commits', () => {
+    const task = {
+      key: 'PROJ-456',
+      summary: 'Implement User Profile API',
+      acceptanceCriteria: ['GET endpoint works', 'PUT endpoint works'],
+    };
+    const commits = [
+      { hash: 'abc123', message: 'feat: add profile controller', date: '2024-01-01' },
+      { hash: 'def456', message: 'feat: add profile service', date: '2024-01-02' },
+    ];
+    const body = generatePRDescription(task, commits);
+    expect(body).toContain('PROJ-456');
+    expect(body).toContain('Implement User Profile API');
+    expect(body).toContain('add profile controller');
+    expect(body).toContain('- [ ] GET endpoint works');
+  });
+
+  it('skips AC section when no criteria', () => {
+    const task = { key: 'PROJ-1', summary: 'Fix bug', acceptanceCriteria: [] };
+    const body = generatePRDescription(task, []);
+    expect(body).not.toContain('Acceptance Criteria');
   });
 });

@@ -149,6 +149,72 @@ export function extractJiraIdFromBranch(branchName) {
   return match ? match[1] : null;
 }
 
+/**
+ * Detect the git platform from a remote URL.
+ * @param {string} remoteUrl
+ * @returns {{ platform: 'github'|'gitlab'|'bitbucket'|'unknown', owner: string, repo: string }}
+ */
+export function detectPlatform(remoteUrl) {
+  if (!remoteUrl) return { platform: 'unknown', owner: '', repo: '' };
+
+  // SSH format: git@github.com:owner/repo.git
+  const sshMatch = remoteUrl.match(/^git@([^:]+):([^/]+)\/(.+?)(?:\.git)?$/);
+  if (sshMatch) {
+    const host = sshMatch[1];
+    const owner = sshMatch[2];
+    const repo = sshMatch[3];
+    const platform = resolvePlatform(host);
+    return { platform, owner, repo };
+  }
+
+  // HTTPS format: https://github.com/owner/repo.git
+  const httpsMatch = remoteUrl.match(/^https?:\/\/([^/]+)\/([^/]+)\/(.+?)(?:\.git)?$/);
+  if (httpsMatch) {
+    const host = httpsMatch[1];
+    const owner = httpsMatch[2];
+    const repo = httpsMatch[3];
+    const platform = resolvePlatform(host);
+    return { platform, owner, repo };
+  }
+
+  return { platform: 'unknown', owner: '', repo: '' };
+}
+
+function resolvePlatform(host) {
+  if (host.includes('github.com')) return 'github';
+  if (host.includes('gitlab.com')) return 'gitlab';
+  if (host.includes('bitbucket.org')) return 'bitbucket';
+  return 'unknown';
+}
+
+/**
+ * Generate a markdown PR description body.
+ * @param {{ key: string, summary: string, acceptanceCriteria?: string[], jiraHost?: string }} task
+ * @param {Array<{ hash: string, message: string, date: string }>} commits
+ * @returns {string}
+ */
+export function generatePRDescription(task, commits) {
+  const jiraLink = task.jiraHost
+    ? `[${task.key}](${task.jiraHost}/browse/${task.key})`
+    : task.key;
+
+  const commitLines = commits.length > 0
+    ? commits.map((c) => `- ${c.message}`).join('\n')
+    : '- No commits yet';
+
+  let body = `## Description\n${task.summary}\n\n**Jira**: ${jiraLink}\n\n## Changes\n${commitLines}\n`;
+
+  const criteria = task.acceptanceCriteria ?? [];
+  if (criteria.length > 0) {
+    const checkboxes = criteria.map((ac) => `- [ ] ${ac}`).join('\n');
+    body += `\n## Acceptance Criteria\n${checkboxes}\n`;
+  }
+
+  body += `\n## Testing\n- [ ] Unit tests added/updated\n- [ ] Manual testing done`;
+
+  return body;
+}
+
 // ── GitService class ──────────────────────────────────────────────────────────
 
 export class GitService {
@@ -246,6 +312,70 @@ export class GitService {
     const base = baseBranch ?? this.baseBranch;
     const result = await this.git.log({ from: base, to: 'HEAD' });
     return result.all.map(({ hash, message, date }) => ({ hash, message, date }));
+  }
+
+  /**
+   * Get the remote URL for origin.
+   * @returns {Promise<string>}
+   */
+  async getRemoteUrl() {
+    const url = await this.git.remote(['get-url', 'origin']);
+    return url.trim();
+  }
+
+  /**
+   * Create a pull request on the detected platform (GitHub only for now).
+   * @param {{ title: string, body: string, baseBranch: string, draft?: boolean, reviewers?: string[] }} options
+   * @returns {Promise<{ number: number, url: string, htmlUrl: string }>}
+   */
+  async createPR({ title, body, baseBranch, draft = false, reviewers }) {
+    const remoteUrl = await this.getRemoteUrl();
+    const { platform, owner, repo } = detectPlatform(remoteUrl);
+
+    if (platform !== 'github') {
+      const manualUrl = platform === 'unknown'
+        ? remoteUrl
+        : `https://${platform === 'gitlab' ? 'gitlab.com' : 'bitbucket.org'}/${owner}/${repo}`;
+      throw new Error(`PR creation for ${platform} not yet supported. Create manually: ${manualUrl}`);
+    }
+
+    const token = process.env.DEVFLOW_GITHUB_TOKEN;
+    const headers = {
+      'Content-Type': 'application/json',
+      Accept: 'application/vnd.github+json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+
+    const currentBranch = await this.getCurrentBranch();
+
+    const createResponse = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/pulls`,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ title, body, head: currentBranch, base: baseBranch, draft }),
+      }
+    );
+
+    if (!createResponse.ok) {
+      const errorText = await createResponse.text();
+      throw new Error(`Failed to create PR: ${createResponse.status} ${errorText}`);
+    }
+
+    const pr = await createResponse.json();
+
+    if (reviewers && reviewers.length > 0) {
+      await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/pulls/${pr.number}/requested_reviewers`,
+        {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ reviewers }),
+        }
+      );
+    }
+
+    return { number: pr.number, url: pr.url, htmlUrl: pr.html_url };
   }
 
   /**
