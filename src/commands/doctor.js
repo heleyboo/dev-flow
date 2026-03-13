@@ -94,6 +94,25 @@ export function runChecks(projectRoot) {
     }
   }
 
+  // Jira config checks
+  if (raw.jira) {
+    if (raw.jira.host) {
+      results.push({ category: 'jira', name: 'Jira host configured', status: 'pass' });
+    } else {
+      results.push({ category: 'jira', name: 'Jira host configured', status: 'fail', message: 'jira.host not set in .devflow.yml' });
+    }
+    if (raw.jira.email) {
+      results.push({ category: 'jira', name: 'Jira email configured', status: 'pass' });
+    } else {
+      results.push({ category: 'jira', name: 'Jira email configured', status: 'fail', message: 'jira.email not set in .devflow.yml' });
+    }
+    if (process.env.DEVFLOW_JIRA_TOKEN) {
+      results.push({ category: 'jira', name: 'DEVFLOW_JIRA_TOKEN set', status: 'pass' });
+    } else {
+      results.push({ category: 'jira', name: 'DEVFLOW_JIRA_TOKEN set', status: 'warn', message: 'Set DEVFLOW_JIRA_TOKEN env var for Jira integration' });
+    }
+  }
+
   // Linked project checks
   if (raw.linked_projects) {
     for (const [name, linked] of Object.entries(raw.linked_projects)) {
@@ -136,6 +155,12 @@ export function generateFixSuggestions(results) {
       fixes.push({ check: r.name, command: `mkdir -p ${r.message?.split(': ')[1] || 'path'}` });
     } else if (r.name.includes('container running')) {
       fixes.push({ check: r.name, command: 'docker compose up -d' });
+    } else if (r.name.includes('DEVFLOW_JIRA_TOKEN')) {
+      fixes.push({ check: r.name, command: 'export DEVFLOW_JIRA_TOKEN=your_jira_api_token' });
+    } else if (r.name.includes('Jira host')) {
+      fixes.push({ check: r.name, command: 'Add jira.host to .devflow.yml' });
+    } else if (r.name.includes('Jira email')) {
+      fixes.push({ check: r.name, command: 'Add jira.email to .devflow.yml' });
     }
   }
   return fixes;
