@@ -151,7 +151,7 @@ linked_projects:                      # Only used when structure: "multi-repo"
     local_path: "../my-app-web"
     branch: "develop"
     role: "frontend"
-    infrastructure_source: true       # This linked project reads infra config from current repo
+    infrastructure_from: "api"        # Name of the service/repo that defines infrastructure. Explicit pointer instead of boolean.
 
 # ─── Integrations ────────────────────
 jira:
@@ -230,13 +230,17 @@ deploy:
       on_success: false
       on_failure: true
 
+  # Safeguards apply per-environment. Define at top level as defaults,
+  # override per-environment if needed (e.g., staging has no restrictions).
   safeguards:
-    blocked_hours:
-      friday: { after: "16:00" }
-      saturday: "all"
-      sunday: "all"
-    cooldown_minutes: 30
-    max_deploys_per_day: 5
+    production:                       # Only production has strict safeguards by default
+      blocked_hours:
+        friday: { after: "16:00" }
+        saturday: "all"
+        sunday: "all"
+      cooldown_minutes: 30
+      max_deploys_per_day: 5
+    staging: {}                       # No restrictions for staging (empty = no safeguards)
 
 # ─── Prompt generation ───────────────
 prompt:
@@ -337,7 +341,7 @@ test:
 | `fastapi` | `main.py` |
 | `express` | `src/index.js` |
 | `nestjs` | `src/main.ts` |
-| `spring-boot` | `src/main/java/.../Application.java` |
+| `spring-boot` | Auto-detected: scans `**/Application.java` or parses `pom.xml` for main class |
 | `dotnet` | `Program.cs` |
 
 ### 3.4 Environment variable naming per stack
@@ -577,7 +581,7 @@ const STACK_MAP = {
   nestjs:        { base: "node:{v}-alpine",                  scaffold: "npx @nestjs/cli new",
                    entry_point: "src/main.ts" },
   "spring-boot": { base: "eclipse-temurin:{v}-jdk",          scaffold: "spring init",
-                   entry_point: "src/main/java/.../Application.java" },
+                   entry_point: "auto-detect: scan **/Application.java or parse pom.xml mainClass" },
   dotnet:        { base: "mcr.microsoft.com/dotnet/sdk:{v}", scaffold: "dotnet new webapi",
                    entry_point: "Program.cs" },
   // Frontend
@@ -599,6 +603,22 @@ const STACK_MAP = {
 - `depends_on` with `condition: service_healthy` for proper startup order
 - Infrastructure services with companion requirements (e.g., Kafka + ZooKeeper) auto-generate all required containers
 
+### 6.5 Port conflict resolution
+
+When multiple DevFlow projects run simultaneously on the same host, port conflicts can occur. Strategy:
+
+1. **Project-scoped port offset**: Each project gets a base offset derived from a hash of `project.name`. Example: `my-app` → offset 0 (ports 8000, 3000, 5432...), `other-app` → offset 100 (ports 8100, 3100, 5532...)
+2. **`devflow doctor`** checks if configured ports are already in use and warns
+3. **`devflow init`** scans for running Docker containers and avoids conflicting ports
+4. **User override always wins**: if user explicitly sets a port in config, DevFlow uses it as-is
+
+### 6.6 Generated files
+
+DevFlow generates:
+- `.env` — contains actual values, **added to `.gitignore`** (never committed)
+- `.env.example` — contains placeholder values, **committed** (safe, no secrets)
+- Both files generated simultaneously from the same template
+
 ---
 
 ## 7. Linked Projects (Multi-repo)
@@ -614,7 +634,7 @@ linked_projects:
     local_path: "../my-app-web"    # Convention-based local path
     branch: "develop"
     role: "frontend"
-    infrastructure_source: true    # This project reads infra config from current repo
+    infrastructure_from: "api"    # Explicit: reads infra config from the "api" service/repo
 ```
 
 ### 7.2 Resolution logic
@@ -628,9 +648,11 @@ When cross-context is needed (e.g., `devflow prompt --fullstack`):
 
 ### 7.3 Infrastructure sharing in multi-repo
 
-When `infrastructure_source: true` is set on a linked project:
+When `infrastructure_from: "api"` is set on a linked project:
 - The linked project does NOT define its own infrastructure
-- It reads infrastructure config from the repo that defines it
+- It reads infrastructure config from the repo/service named `"api"` (explicit pointer, not boolean)
+- Multiple linked projects can all point to the same infrastructure source (e.g., `infrastructure_from: "api"`)
+- Only one repo should define `infrastructure`; all others reference it via `infrastructure_from`
 - In the workspace `docker-compose.yml`, all services share the same Docker network
 - Service discovery via Docker DNS: linked frontend accesses API via `http://api:{port}`, database via `database:{port}`
 
@@ -660,7 +682,7 @@ The workspace compose reads infrastructure from whichever repo defines it and ma
 | infrastructure | Container running, healthy, port reachable, host requirements met (e.g., vm.max_map_count for ES) |
 | docker | Docker installed, Compose installed, compose file valid, all containers healthy |
 | integrations | Jira connection, Figma connection, Git platform, SSH access |
-| linked | Linked repo accessible (local or remote), config valid, infrastructure_source consistent |
+| linked | Linked repo accessible (local or remote), config valid, `infrastructure_from` target exists and defines infrastructure |
 
 ### 8.2 `--fix` mode
 
