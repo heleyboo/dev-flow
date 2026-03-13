@@ -1,0 +1,77 @@
+# Task: {{task.summary}} [{{task.key}}]
+
+## Context
+
+### Project Info
+- **Type**: {{task.type}} | **Priority**: {{task.priority}}
+{{#if task.epic}}
+- **Epic**: {{task.epic.key}} — {{task.epic.summary}}
+{{/if}}
+{{#if task.parent}}
+- **Parent**: {{task.parent.key}} — {{task.parent.summary}}
+{{/if}}
+{{#if task.sprint}}
+- **Sprint**: {{task.sprint}}
+{{/if}}
+
+### Description
+{{task.description}}
+
+{{#if task.acceptanceCriteria.length}}
+### Acceptance Criteria
+{{#each task.acceptanceCriteria}}
+{{add1 @index}}. {{this}}
+{{/each}}
+{{/if}}
+
+{{#if task.subtasks.length}}
+### Subtasks
+{{#each task.subtasks}}
+- [{{status}}] {{key}}: {{summary}}
+{{/each}}
+{{/if}}
+
+{{#if figma}}
+## UI/Design Specs
+
+### Component Structure
+{{{figma.componentTreeMarkdown}}}
+
+{{#if figma.impliedFields.length}}
+### Implied API Fields
+| Field | Type | Input | Required |
+|-------|------|-------|----------|
+{{#each figma.impliedFields}}
+| {{name}} | {{type}} | {{inputType}} | {{#if required}}Yes{{else}}No{{/if}} |
+{{/each}}
+{{/if}}
+
+{{#if figma.designTokens.colors.length}}
+### Design Tokens
+{{#each figma.designTokens.colors}}
+- {{name}}: {{hex}} ({{usage}})
+{{/each}}
+{{/if}}
+{{/if}}
+
+{{#if codeContext}}
+## Existing Code Context
+
+{{#each codeContext.files}}
+### `{{path}}`
+```{{language}}
+{{{content}}}
+```
+{{/each}}
+{{/if}}
+
+## Implementation Instructions
+
+{{> (lookup . 'templatePartial') }}
+
+{{#if standards.length}}
+## Project Standards
+{{#each standards}}
+- {{this}}
+{{/each}}
+{{/if}}
