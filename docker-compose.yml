@@ -1,0 +1,88 @@
+version: "3.8"
+
+services:
+  # ─── DevFlow CLI & Backend API ───────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: devflow-app
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+      - ~/.ssh:/home/node/.ssh:ro          # SSH keys for deploy feature
+      - ~/.gitconfig:/home/node/.gitconfig:ro
+    ports:
+      - "3456:3456"   # Web Dashboard
+      - "9229:9229"   # Node.js debugger
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=development
+    working_dir: /app
+    command: npm run dev
+    depends_on:
+      - redis
+    networks:
+      - devflow-net
+
+  # ─── Redis (caching Figma/Jira responses) ───────────
+  redis:
+    image: redis:7-alpine
+    container_name: devflow-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - devflow-net
+
+  # ─── Test Runner (vitest watch mode) ─────────────────
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: devflow-test
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=test
+    working_dir: /app
+    command: npm run test:watch
+    profiles:
+      - testing
+    networks:
+      - devflow-net
+
+  # ─── Web Dashboard Frontend (React dev server) ──────
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: devflow-web
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+    ports:
+      - "5173:5173"   # Vite dev server
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://localhost:3456
+    working_dir: /app/src/web/frontend
+    command: npx vite --host
+    profiles:
+      - dashboard
+    networks:
+      - devflow-net
+
+volumes:
+  node_modules:
+  redis_data:
+
+networks:
+  devflow-net:
+    driver: bridge

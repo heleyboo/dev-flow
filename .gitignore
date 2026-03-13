@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+.devflow/cache/
+.devflow/tests/
+*.log
+coverage/
+playwright-report/
+test-results/
+.DS_Store

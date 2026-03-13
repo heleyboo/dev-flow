@@ -1,0 +1,57 @@
+{
+  "name": "devflow-cli",
+  "version": "1.0.0",
+  "description": "CLI tool + Web Dashboard to automate PHP developer workflow",
+  "type": "module",
+  "bin": {
+    "devflow": "./bin/devflow.js"
+  },
+  "scripts": {
+    "dev": "node --watch bin/devflow.js web",
+    "start": "node bin/devflow.js",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "build": "echo 'No build step needed for pure JS'"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "inquirer": "^9.3.0",
+    "chalk": "^5.3.0",
+    "ora": "^8.1.0",
+    "yaml": "^2.5.0",
+    "handlebars": "^4.7.8",
+    "clipboardy": "^4.0.0",
+    "node-ssh": "^13.2.0",
+    "simple-git": "^3.27.0",
+    "express": "^4.21.0",
+    "boxen": "^8.0.1",
+    "table": "^6.8.2",
+    "date-fns": "^4.1.0",
+    "conf": "^13.0.1",
+    "open": "^10.1.0",
+    "ioredis": "^5.4.1",
+    "node-fetch": "^3.3.2",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.0",
+    "eslint": "^9.12.0",
+    "@vitest/coverage-v8": "^2.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "cli",
+    "devflow",
+    "jira",
+    "figma",
+    "automation",
+    "php",
+    "laravel"
+  ],
+  "license": "MIT"
+}
