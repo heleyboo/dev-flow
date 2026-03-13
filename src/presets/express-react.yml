@@ -1,0 +1,26 @@
+name: "express-react"
+description: "Express backend + React frontend fullstack with MongoDB and Redis"
+services:
+  api:
+    role: "backend"
+    stack: "express"
+    language: { name: "javascript", version: "20" }
+    framework_version: "4.21"
+    port: 8000
+    scaffold:
+      command: "npx express-generator {path}"
+      docker_image: "node:20-alpine"
+  web:
+    role: "frontend"
+    stack: "react"
+    language: { name: "typescript", version: "5.5" }
+    port: 3000
+    scaffold:
+      command: "npx create-vite {path} --template react-ts"
+      docker_image: "node:20-alpine"
+infrastructure:
+  database: { engine: "mongodb", version: "7", port: 27017 }
+  cache: { engine: "redis", version: "7", port: 6379 }
+  queue: { engine: null }
+  search: { engine: null }
+  storage: { engine: null }

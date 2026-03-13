@@ -1,0 +1,26 @@
+name: "dotnet-angular"
+description: ".NET backend + Angular frontend fullstack with PostgreSQL and Redis"
+services:
+  api:
+    role: "backend"
+    stack: "dotnet"
+    language: { name: "csharp", version: "8.0" }
+    framework_version: "8.0"
+    port: 8000
+    scaffold:
+      command: "dotnet new webapi -o {path}"
+      docker_image: "mcr.microsoft.com/dotnet/sdk:8.0"
+  web:
+    role: "frontend"
+    stack: "angular"
+    language: { name: "typescript", version: "5.5" }
+    port: 3000
+    scaffold:
+      command: "npx @angular/cli new {path}"
+      docker_image: "node:20-alpine"
+infrastructure:
+  database: { engine: "postgresql", version: "16", port: 5432 }
+  cache: { engine: "redis", version: "7", port: 6379 }
+  queue: { engine: null }
+  search: { engine: null }
+  storage: { engine: null }

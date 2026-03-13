@@ -1,0 +1,26 @@
+name: "spring-react"
+description: "Spring Boot backend + React frontend fullstack with PostgreSQL and Redis"
+services:
+  api:
+    role: "backend"
+    stack: "spring-boot"
+    language: { name: "java", version: "21" }
+    framework_version: "3.3"
+    port: 8000
+    scaffold:
+      command: "spring init --dependencies=web,data-jpa --type=maven-project {path}"
+      docker_image: "eclipse-temurin:21-jdk"
+  web:
+    role: "frontend"
+    stack: "react"
+    language: { name: "typescript", version: "5.5" }
+    port: 3000
+    scaffold:
+      command: "npx create-vite {path} --template react-ts"
+      docker_image: "node:20-alpine"
+infrastructure:
+  database: { engine: "postgresql", version: "16", port: 5432 }
+  cache: { engine: "redis", version: "7", port: 6379 }
+  queue: { engine: null }
+  search: { engine: null }
+  storage: { engine: null }

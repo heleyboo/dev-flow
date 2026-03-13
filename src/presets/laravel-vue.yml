@@ -1,0 +1,26 @@
+name: "laravel-vue"
+description: "Laravel backend + Vue frontend fullstack with MySQL and Redis"
+services:
+  api:
+    role: "backend"
+    stack: "laravel"
+    language: { name: "php", version: "8.3" }
+    framework_version: "11"
+    port: 8000
+    scaffold:
+      command: "composer create-project laravel/laravel {path}"
+      docker_image: "composer:latest"
+  web:
+    role: "frontend"
+    stack: "vue"
+    language: { name: "typescript", version: "5.5" }
+    port: 3000
+    scaffold:
+      command: "npx create-vue {path}"
+      docker_image: "node:20-alpine"
+infrastructure:
+  database: { engine: "mysql", version: "8.0", port: 3306 }
+  cache: { engine: "redis", version: "7", port: 6379 }
+  queue: { engine: null }
+  search: { engine: null }
+  storage: { engine: null }

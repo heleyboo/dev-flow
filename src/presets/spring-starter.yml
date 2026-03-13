@@ -1,0 +1,18 @@
+name: "spring-starter"
+description: "Spring Boot backend starter with PostgreSQL and Redis"
+services:
+  api:
+    role: "backend"
+    stack: "spring-boot"
+    language: { name: "java", version: "21" }
+    framework_version: "3.3"
+    port: 8000
+    scaffold:
+      command: "spring init --dependencies=web,data-jpa --type=maven-project {path}"
+      docker_image: "eclipse-temurin:21-jdk"
+infrastructure:
+  database: { engine: "postgresql", version: "16", port: 5432 }
+  cache: { engine: "redis", version: "7", port: 6379 }
+  queue: { engine: null }
+  search: { engine: null }
+  storage: { engine: null }

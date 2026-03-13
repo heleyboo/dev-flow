@@ -1,0 +1,18 @@
+name: "express-starter"
+description: "Express backend starter with MongoDB and Redis"
+services:
+  api:
+    role: "backend"
+    stack: "express"
+    language: { name: "javascript", version: "20" }
+    framework_version: "4.21"
+    port: 8000
+    scaffold:
+      command: "npx express-generator {path}"
+      docker_image: "node:20-alpine"
+infrastructure:
+  database: { engine: "mongodb", version: "7", port: 27017 }
+  cache: { engine: "redis", version: "7", port: 6379 }
+  queue: { engine: null }
+  search: { engine: null }
+  storage: { engine: null }

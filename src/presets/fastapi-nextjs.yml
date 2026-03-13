@@ -1,0 +1,26 @@
+name: "fastapi-nextjs"
+description: "FastAPI backend + Next.js frontend fullstack with PostgreSQL and Redis"
+services:
+  api:
+    role: "backend"
+    stack: "fastapi"
+    language: { name: "python", version: "3.12" }
+    framework_version: "0.115"
+    port: 8000
+    scaffold:
+      command: "pip install fastapi uvicorn"
+      docker_image: "python:3.12-slim"
+  web:
+    role: "frontend"
+    stack: "nextjs"
+    language: { name: "typescript", version: "5.5" }
+    port: 3000
+    scaffold:
+      command: "npx create-next-app {path} --typescript"
+      docker_image: "node:20-alpine"
+infrastructure:
+  database: { engine: "postgresql", version: "16", port: 5432 }
+  cache: { engine: "redis", version: "7", port: 6379 }
+  queue: { engine: null }
+  search: { engine: null }
+  storage: { engine: null }
